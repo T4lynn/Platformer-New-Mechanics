@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 public enum PlayerDirection
@@ -10,8 +11,16 @@ public enum PlayerState
     idle, walking, jumping, dead
 }
 
+
 public class PlayerController : MonoBehaviour
 {
+    public IEnumerator dashSpeed()
+    {
+        maxSpeed = 10f;
+        yield return new WaitForSeconds(5);
+        maxSpeed = 5f;
+    }
+
     [SerializeField] private Rigidbody2D body;
     private PlayerDirection currentDirection = PlayerDirection.right;
     public PlayerState currentState = PlayerState.idle;
@@ -67,7 +76,7 @@ public class PlayerController : MonoBehaviour
             currentState = PlayerState.dead;
         }
 
-        switch(currentState)
+        switch (currentState)
         {
             case PlayerState.dead:
                 // do nothing - we ded.
@@ -98,6 +107,11 @@ public class PlayerController : MonoBehaviour
             velocity.y = 0;
 
         body.velocity = velocity;
+
+        if (Input.GetKeyDown(KeyCode.E))
+        {
+            StartCoroutine(dashSpeed());
+        }
     }
 
     private void MovementUpdate(Vector2 playerInput)
@@ -163,4 +177,7 @@ public class PlayerController : MonoBehaviour
     {
         return currentDirection;
     }
+
+    
+
 }
