@@ -17,6 +17,7 @@ public enum PlayerState
 public class PlayerController : MonoBehaviour
 {
    
+    // a coroutine that runs when the player hit's 'E'. The coroutine increases the max speed to let the player 'sprint'. 
     public IEnumerator dashSpeed()
     {
         maxSpeed = 10f;
@@ -24,7 +25,7 @@ public class PlayerController : MonoBehaviour
         maxSpeed = 5f;
     }
 
-  
+  // launch pad variables. 
     public bool launchPad;
     public Vector2 bounceForce = new Vector2(0, 1000);
 
@@ -58,6 +59,7 @@ public class PlayerController : MonoBehaviour
 
     private Vector2 velocity;
 
+    //added variables involved with climbing. 
     [Header("Climbing Check")]
     public float climbOffset = 0.5f;
     public Vector2 climbSize = new(0.4f, 0.1f);
@@ -80,7 +82,7 @@ public class PlayerController : MonoBehaviour
         previousState = currentState;
 
         CheckForGround();
-        checkClimbing();
+        checkClimbing(); // checks for whether the player is close enough to a wall to climb.
         if (climbing)
         {
            // Debug.Log("climbing now");
@@ -88,7 +90,7 @@ public class PlayerController : MonoBehaviour
 
             Vector2 playerInput = new Vector2();
         playerInput.x = Input.GetAxisRaw("Horizontal");
-        playerInput.y = Input.GetAxisRaw("Vertical");
+        playerInput.y = Input.GetAxisRaw("Vertical"); // added a verical input axis.
 
         if (isDead)
         {
@@ -118,6 +120,8 @@ public class PlayerController : MonoBehaviour
                 }
                 if (climbing) { currentState = PlayerState.climbing; }
                 break;
+
+                //added a climbing state.
             case PlayerState.climbing:
                 if (velocity.x != 0) { currentState = PlayerState.walking; }
                 else if (!isGrounded && !climbing) { currentState = PlayerState.jumping; }
@@ -130,7 +134,7 @@ public class PlayerController : MonoBehaviour
 
         if (!isGrounded && !climbing)
         { velocity.y += gravity * Time.deltaTime; }
-        else if (launchPad) { return; }
+        else if (launchPad) { return; } //if the player is on the launch pad, the code returns instead of setting the velocity. 
         else
         { velocity.y = 0; }
 
@@ -169,10 +173,11 @@ public class PlayerController : MonoBehaviour
             }
         }
         ////added on new code.
+        //If the player is close enough to a wall, the player can use their y input to move up and down the wall. 
         if (climbing == true)
         {
             
-           Debug.Log("climbing now");
+          // Debug.Log("climbing now");
             Vector2 Position = new Vector2(transform.position.x, transform.position.y);
 
                 Position.y += playerInput.y * 1  *Time.deltaTime;
@@ -197,6 +202,8 @@ public class PlayerController : MonoBehaviour
             0,
             groundCheckMask);
     }
+    //Checks to see if the player is close enough to a wall to climb using an overlap box (nearly the same as the isgrounded
+    //function. 
     public void checkClimbing()
     {
         climbing =  Physics2D.OverlapBox(
@@ -218,6 +225,7 @@ public class PlayerController : MonoBehaviour
         return isGrounded;
     }
 
+    //Checks to see if the player is on the bouncy pad. If the player is, it adds a force. 
     private void OnTriggerEnter2D(Collider2D collision)
     {
         Debug.Log("triggered");
