@@ -1,5 +1,7 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.UIElements;
+using UnityEngine.Windows.Speech;
 
 public enum PlayerDirection
 {
@@ -8,18 +10,23 @@ public enum PlayerDirection
 
 public enum PlayerState
 {
-    idle, walking, jumping, dead
+    idle, walking, jumping, dead, climbing
 }
 
 
 public class PlayerController : MonoBehaviour
 {
+   
     public IEnumerator dashSpeed()
     {
         maxSpeed = 10f;
         yield return new WaitForSeconds(5);
         maxSpeed = 5f;
     }
+
+  
+    public bool launchPad;
+    public Vector2 bounceForce = new Vector2(0, 1000);
 
     [SerializeField] private Rigidbody2D body;
     private PlayerDirection currentDirection = PlayerDirection.right;
@@ -51,6 +58,12 @@ public class PlayerController : MonoBehaviour
 
     private Vector2 velocity;
 
+    [Header("Climbing Check")]
+    public float climbOffset = 0.5f;
+    public Vector2 climbSize = new(0.4f, 0.1f);
+    public LayerMask climbMask;
+    [SerializeField] private bool climbing;
+
     public void Start()
     {
         body.gravityScale = 0;
@@ -67,9 +80,15 @@ public class PlayerController : MonoBehaviour
         previousState = currentState;
 
         CheckForGround();
+        checkClimbing();
+        if (climbing)
+        {
+           // Debug.Log("climbing now");
+        }
 
-        Vector2 playerInput = new Vector2();
+            Vector2 playerInput = new Vector2();
         playerInput.x = Input.GetAxisRaw("Horizontal");
+        playerInput.y = Input.GetAxisRaw("Vertical");
 
         if (isDead)
         {
@@ -82,12 +101,14 @@ public class PlayerController : MonoBehaviour
                 // do nothing - we ded.
                 break;
             case PlayerState.idle:
-                if (!isGrounded) currentState = PlayerState.jumping;
+                if (!isGrounded && !climbing) currentState = PlayerState.jumping;
                 else if (velocity.x != 0) currentState = PlayerState.walking;
+                else if (climbing) { currentState = PlayerState.climbing; }
                 break;
             case PlayerState.walking:
-                if (!isGrounded) currentState = PlayerState.jumping;
-                else if (velocity.x == 0) currentState = PlayerState.idle;
+                if (!isGrounded && !climbing) currentState = PlayerState.jumping;
+                else if (velocity.x == 0 && !climbing) currentState = PlayerState.idle;
+                else if (climbing) { currentState = PlayerState.climbing; }
                 break;
             case PlayerState.jumping:
                 if (isGrounded)
@@ -95,16 +116,23 @@ public class PlayerController : MonoBehaviour
                     if (velocity.x != 0) currentState = PlayerState.walking;
                     else currentState = PlayerState.idle;
                 }
+                if (climbing) { currentState = PlayerState.climbing; }
+                break;
+            case PlayerState.climbing:
+                if (velocity.x != 0) { currentState = PlayerState.walking; }
+                else if (!isGrounded && !climbing) { currentState = PlayerState.jumping; }
+                else { currentState = PlayerState.idle; }
                 break;
         }
 
         MovementUpdate(playerInput);
         JumpUpdate();
 
-        if (!isGrounded)
-            velocity.y += gravity * Time.deltaTime;
+        if (!isGrounded && !climbing)
+        { velocity.y += gravity * Time.deltaTime; }
+        else if (launchPad) { return; }
         else
-            velocity.y = 0;
+        { velocity.y = 0; }
 
         body.velocity = velocity;
 
@@ -116,6 +144,7 @@ public class PlayerController : MonoBehaviour
 
     private void MovementUpdate(Vector2 playerInput)
     {
+        //Debug.Log(playerInput.y + "is the player input");
         if (playerInput.x < 0)
             currentDirection = PlayerDirection.left;
         else if (playerInput.x > 0)
@@ -139,6 +168,16 @@ public class PlayerController : MonoBehaviour
                 velocity.x = Mathf.Min(velocity.x, 0);
             }
         }
+        ////added on new code.
+        if (climbing == true)
+        {
+            
+           Debug.Log("climbing now");
+            Vector2 Position = new Vector2(transform.position.x, transform.position.y);
+
+                Position.y += playerInput.y * 1  *Time.deltaTime;
+                transform.position = Position;  
+        }
     }
 
     private void JumpUpdate()
@@ -158,10 +197,16 @@ public class PlayerController : MonoBehaviour
             0,
             groundCheckMask);
     }
+    public void checkClimbing()
+    {
+        climbing =  Physics2D.OverlapBox(
+            transform.position + Vector3.right * climbOffset, climbSize, 0, climbMask); 
+    }
 
     public void OnDrawGizmos()
     {
         Gizmos.DrawWireCube(transform.position + Vector3.down * groundCheckOffset, groundCheckSize);
+        Gizmos.DrawWireCube(transform.position + Vector3.right * climbOffset, climbSize);
     }
 
     public bool IsWalking()
@@ -171,6 +216,12 @@ public class PlayerController : MonoBehaviour
     public bool IsGrounded()
     {
         return isGrounded;
+    }
+
+    private void OnTriggerEnter2D(Collider2D collision)
+    {
+        Debug.Log("triggered");
+        body.AddForce(bounceForce, ForceMode2D.Force);
     }
 
     public PlayerDirection GetFacingDirection()
